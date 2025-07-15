@@ -2,6 +2,17 @@
 
 A Node.js application that connects to your Gmail account, analyzes your emails, and helps you automatically filter out unwanted messages while preserving important ones from VIP contacts.
 
+## Important: Claude Code Integration
+
+This tool works best when used with [Claude Code](https://github.com/anthropics/claude-code). To get the most accurate email categorization:
+
+1. Run the email analyzer to generate an analysis report
+2. Copy and paste your email analysis results into Claude Code
+3. Claude Code will help you identify patterns and create optimal filtering rules
+4. Apply the refined rules back to your Gmail account
+
+This approach ensures more intelligent email categorization based on actual content patterns rather than simple keyword matching.
+
 ## Features
 
 - **Email Analysis**: Fetches and analyzes your recent emails to identify patterns
@@ -26,7 +37,8 @@ A Node.js application that connects to your Gmail account, analyzes your emails,
 
 ### 1. Clone the repository
 ```bash
-cd /Users/ryanbrandt/git/email_unfucking
+git clone https://github.com/yourusername/email-filter.git
+cd email-filter
 ```
 
 ### 2. Install dependencies
@@ -86,7 +98,7 @@ This will:
 ## File Structure
 
 ```
-email_unfucking/
+email-filter/
 ├── src/
 │   ├── auth.js          # Gmail API authentication
 │   ├── emailAnalyzer.js # Email analysis logic
