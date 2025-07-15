@@ -1,0 +1,23 @@
+{
+  "name": "gmail-email-filter",
+  "version": "1.0.0",
+  "description": "Gmail email filtering and organization tool",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "continuous": "node src/continuous.js",
+    "batch": "node src/batch-inbox.js",
+    "check-filters": "node src/check-filters.js",
+    "analyze": "node src/analyze.js",
+    "filter": "node src/filter.js",
+    "reset": "rm -f .checkpoint.json && echo 'Checkpoint reset!'"
+  },
+  "dependencies": {
+    "@google-cloud/local-auth": "^3.0.1",
+    "googleapis": "^144.0.0",
+    "dotenv": "^16.4.5",
+    "chalk": "^5.3.0",
+    "ora": "^8.1.0"
+  }
+}
