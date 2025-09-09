@@ -11,7 +11,12 @@
     "check-filters": "node src/check-filters.js",
     "analyze": "node src/analyze.js",
     "filter": "node src/filter.js",
-    "reset": "rm -f .checkpoint.json && echo 'Checkpoint reset!'"
+    "reset": "rm -f .checkpoint.json && echo 'Checkpoint reset!'",
+    "dry-run": "node src/dryRunFilterImprovements.js",
+    "improve-filters": "node src/applyFilterImprovements.js",
+    "spam-rescue": "node src/analyzeLikelySpam.js",
+    "spam-rescue-paginated": "node src/analyzeLikelySpamPaginated.js",
+    "archive-read": "node src/archiveReadEmails.js"
   },
   "dependencies": {
     "@google-cloud/local-auth": "^3.0.1",
