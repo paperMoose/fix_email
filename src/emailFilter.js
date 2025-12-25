@@ -1,15 +1,32 @@
 import { google } from 'googleapis';
 import ora from 'ora';
 import chalk from 'chalk';
+import { withRetry, isProtectedSender as checkProtectedSender, isFromProtectedDomain, RateLimiter, sleep } from './utils.js';
 
 export class EmailFilter {
   constructor(auth, protectedSenders = []) {
     this.gmail = google.gmail({ version: 'v1', auth });
     this.protectedSenders = protectedSenders.map(email => email.toLowerCase().trim());
+    this.rateLimiter = new RateLimiter(10);
+    this.existingFilters = null; // Cache of existing filters
   }
 
   isProtectedSender(email) {
-    return this.protectedSenders.includes(email.toLowerCase());
+    // Use both exact match and domain-based matching
+    return checkProtectedSender(email, this.protectedSenders) || isFromProtectedDomain(email);
+  }
+
+  async getExistingFilters() {
+    if (this.existingFilters) return this.existingFilters;
+
+    const response = await this.gmail.users.settings.filters.list({ userId: 'me' });
+    this.existingFilters = response.data.filter || [];
+    return this.existingFilters;
+  }
+
+  async filterExists(from) {
+    const filters = await this.getExistingFilters();
+    return filters.some(f => f.criteria?.from === from);
   }
 
   async createLabel(labelName, options = {}) {
@@ -114,19 +131,29 @@ export class EmailFilter {
     if (analysisResults.newsletters.length > 5) {
       const frequentNewsletters = this.getFrequentSenders(analysisResults.newsletters, 3);
       for (const sender of frequentNewsletters) {
+        // Skip if filter already exists or sender is protected
+        if (await this.filterExists(sender)) {
+          continue;
+        }
+        if (this.isProtectedSender(sender)) {
+          continue;
+        }
         try {
-          await this.gmail.users.settings.filters.create({
-            userId: 'me',
-            requestBody: {
-              criteria: { 
-                from: sender,
-                excludeChats: true 
-              },
-              action: { 
-                addLabelIds: [labels['Filtered/Newsletters'].id],
-                removeLabelIds: ['INBOX']
+          await this.rateLimiter.wait();
+          await withRetry(async () => {
+            return this.gmail.users.settings.filters.create({
+              userId: 'me',
+              requestBody: {
+                criteria: {
+                  from: sender,
+                  excludeChats: true
+                },
+                action: {
+                  addLabelIds: [labels['Filtered/Newsletters'].id],
+                  removeLabelIds: ['INBOX']
+                }
               }
-            }
+            });
           });
           createdCount++;
         } catch (error) {
@@ -139,19 +166,25 @@ export class EmailFilter {
     if (analysisResults.promotional.length > 5) {
       const frequentPromo = this.getFrequentSenders(analysisResults.promotional, 3);
       for (const sender of frequentPromo) {
+        if (await this.filterExists(sender)) continue;
+        if (this.isProtectedSender(sender)) continue;
+
         try {
-          await this.gmail.users.settings.filters.create({
-            userId: 'me',
-            requestBody: {
-              criteria: { 
-                from: sender,
-                excludeChats: true 
-              },
-              action: { 
-                addLabelIds: [labels['Filtered/Promotional'].id],
-                removeLabelIds: ['INBOX']
+          await this.rateLimiter.wait();
+          await withRetry(async () => {
+            return this.gmail.users.settings.filters.create({
+              userId: 'me',
+              requestBody: {
+                criteria: {
+                  from: sender,
+                  excludeChats: true
+                },
+                action: {
+                  addLabelIds: [labels['Filtered/Promotional'].id],
+                  removeLabelIds: ['INBOX']
+                }
               }
-            }
+            });
           });
           createdCount++;
         } catch (error) {
@@ -164,24 +197,25 @@ export class EmailFilter {
     if (analysisResults.automated.length > 5) {
       const frequentAutomated = this.getFrequentSenders(analysisResults.automated, 3);
       for (const sender of frequentAutomated) {
-        // Skip if this is a protected sender
-        if (this.isProtectedSender && this.isProtectedSender(sender)) {
-          continue;
-        }
-        
+        if (await this.filterExists(sender)) continue;
+        if (this.isProtectedSender(sender)) continue;
+
         try {
-          await this.gmail.users.settings.filters.create({
-            userId: 'me',
-            requestBody: {
-              criteria: { 
-                from: sender,
-                excludeChats: true 
-              },
-              action: { 
-                addLabelIds: [labels['Filtered/Automated'].id],
-                removeLabelIds: ['INBOX']
+          await this.rateLimiter.wait();
+          await withRetry(async () => {
+            return this.gmail.users.settings.filters.create({
+              userId: 'me',
+              requestBody: {
+                criteria: {
+                  from: sender,
+                  excludeChats: true
+                },
+                action: {
+                  addLabelIds: [labels['Filtered/Automated'].id],
+                  removeLabelIds: ['INBOX']
+                }
               }
-            }
+            });
           });
           createdCount++;
         } catch (error) {

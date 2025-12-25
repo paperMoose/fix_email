@@ -16,7 +16,9 @@
     "improve-filters": "node src/applyFilterImprovements.js",
     "spam-rescue": "node src/analyzeLikelySpam.js",
     "spam-rescue-paginated": "node src/analyzeLikelySpamPaginated.js",
-    "archive-read": "node src/archiveReadEmails.js"
+    "archive-read": "node src/archiveReadEmails.js",
+    "cleanup": "node src/cleanupFilters.js",
+    "cleanup-apply": "node src/cleanupFilters.js --apply"
   },
   "dependencies": {
     "@google-cloud/local-auth": "^3.0.1",

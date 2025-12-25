@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { withRetry, extractEmail, isProtectedSender, isFromProtectedDomain, RateLimiter } from './utils.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -13,6 +14,7 @@ export class EmailAnalyzer {
     this.vipEmails = vipEmails.map(email => email.toLowerCase().trim());
     this.protectedSenders = protectedSenders.map(email => email.toLowerCase().trim());
     this.protectedKeywords = protectedKeywords.map(keyword => keyword.toLowerCase().trim());
+    this.rateLimiter = new RateLimiter(10); // 10 requests per second
     this.emailStats = {
       total: 0,
       fromVIP: [],
@@ -91,11 +93,15 @@ export class EmailAnalyzer {
 
   async analyzeEmail(messageId) {
     try {
-      const response = await this.gmail.users.messages.get({
-        userId: 'me',
-        id: messageId,
-        format: 'metadata',
-        metadataHeaders: ['From', 'Subject', 'List-Unsubscribe', 'List-ID']
+      await this.rateLimiter.wait();
+
+      const response = await withRetry(async () => {
+        return this.gmail.users.messages.get({
+          userId: 'me',
+          id: messageId,
+          format: 'metadata',
+          metadataHeaders: ['From', 'Subject', 'List-Unsubscribe', 'List-ID']
+        });
       });
 
       const message = response.data;
@@ -106,7 +112,7 @@ export class EmailAnalyzer {
 
       const from = headers.from || '';
       const subject = headers.subject || '';
-      const fromEmail = this.extractEmail(from).toLowerCase();
+      const fromEmail = extractEmail(from);
       const labels = message.labelIds || [];
 
       const analysis = {
@@ -123,11 +129,6 @@ export class EmailAnalyzer {
       console.error(`Error analyzing message ${messageId}:`, error.message);
       return null;
     }
-  }
-
-  extractEmail(fromField) {
-    const match = fromField.match(/<(.+?)>/) || fromField.match(/([^\s]+@[^\s]+)/);
-    return match ? match[1] : fromField;
   }
 
   categorizeEmail(headers, labels, fromEmail, subject) {
